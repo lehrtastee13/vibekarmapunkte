@@ -25,7 +25,7 @@
         .text-primary { color: var(--royal-purple); }
         .border-primary { border-color: var(--royal-purple); }
         .focus-ring-primary:focus {
-            ring-color: var(--royal-purple);
+            --tw-ring-color: var(--royal-purple);
         }
 
         /* Custom styles für einen besseren Look */
@@ -74,7 +74,7 @@
                 <div>
                     <label for="userSelect" class="block text-sm font-medium text-gray-700 mb-1">Benutzer auswählen</label>
                     <select id="userSelect" name="userSelect" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-offset-1 focus-ring-primary">
-                        <option>Lade Benutzer...</option>
+                        <option>Verbinde mit Server...</option>
                     </select>
                 </div>
                 <div>
@@ -140,14 +140,13 @@
     <script type="module">
         // Firebase Imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, addDoc, onSnapshot, runTransaction, serverTimestamp, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- FIREBASE CONFIGURATION ---
-        // Die Konfiguration wird automatisch aus der Umgebung geladen.
         const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "...", authDomain: "...", projectId: "..." };
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-karma-app';
-        console.log("Using App ID:", appId); // For debugging
+        console.log("Using App ID:", appId);
         
         // --- FIREBASE INITIALIZATION ---
         const app = initializeApp(firebaseConfig);
@@ -161,13 +160,10 @@
         // --- DOM ELEMENTS ---
         const userSelect = document.getElementById('userSelect');
         const rankingDiv = document.getElementById('ranking');
-        const karmaForm = document.getElementById('karmaForm');
         const positiveKarmaButtons = document.getElementById('positiveKarma');
         const negativeKarmaButtons = document.getElementById('negativeKarma');
         const karmaReason = document.getElementById('karmaReason');
         const messageArea = document.getElementById('messageArea');
-        
-        // Modal elements
         const addUserModal = document.getElementById('addUserModal');
         const addUserBtn = document.getElementById('addUserBtn');
         const closeModalBtn = document.getElementById('closeModalBtn');
@@ -175,27 +171,45 @@
 
         // --- STATE ---
         let users = [];
+        let isAuthReady = false;
 
         // --- AUTHENTICATION ---
-        onAuthStateChanged(auth, user => {
+        onAuthStateChanged(auth, (user) => {
             if (user) {
-                console.log("User is signed in:", user.uid);
-                // Sobald der Benutzer angemeldet ist, laden wir die Daten
-                loadAndRenderUsers();
+                console.log("Authentication successful. User ID:", user.uid);
+                if (!isAuthReady) {
+                    isAuthReady = true;
+                    loadAndRenderUsers();
+                }
             } else {
-                console.log("User is signed out. Signing in anonymously...");
-                signInAnonymously(auth).catch(error => {
-                    console.error("Anonymous sign-in failed:", error);
-                    messageArea.textContent = "Fehler bei der Verbindung zur Datenbank.";
-                    messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
-                });
+                isAuthReady = false;
+                console.log("User is not authenticated.");
+                 rankingDiv.innerHTML = '<p class="text-gray-500">Stelle Verbindung her...</p>';
             }
         });
+
+        (async () => {
+            try {
+                const token = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+                if (token) {
+                    console.log("Attempting sign-in with custom token.");
+                    await signInWithCustomToken(auth, token);
+                } else {
+                    console.log("No custom token found. Attempting anonymous sign-in.");
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Firebase sign-in failed:", error);
+                messageArea.textContent = "Authentifizierung fehlgeschlagen.";
+                messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
+            }
+        })();
+
 
         // --- FUNCTIONS ---
 
         function renderRanking(sortedUsers) {
-            rankingDiv.innerHTML = ''; // Clear previous ranking
+            rankingDiv.innerHTML = ''; 
             if (sortedUsers.length === 0) {
                 rankingDiv.innerHTML = '<p class="text-gray-500">Noch keine Benutzer vorhanden. Füge einen über den Button oben rechts hinzu!</p>';
                 return;
@@ -242,20 +256,21 @@
             const q = query(usersCollection);
             onSnapshot(q, (snapshot) => {
                 users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                
-                // Sort users by karma points descending
                 const sortedUsers = [...users].sort((a, b) => b.karma - a.karma);
-                
                 renderRanking(sortedUsers);
                 updateUserDropdown();
             }, (error) => {
                 console.error("Error fetching users: ", error);
-                messageArea.textContent = "Fehler beim Laden der Benutzer.";
+                messageArea.textContent = "Fehler beim Laden der Benutzer. Überprüfe die Berechtigungen.";
                 messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
             });
         }
 
         async function handleKarmaSubmit(value) {
+            if (!isAuthReady) {
+                displayMessage("Bitte warten, bis die Verbindung hergestellt ist.", "error");
+                return;
+            }
             const userId = userSelect.value;
             const reason = karmaReason.value.trim();
 
@@ -280,10 +295,9 @@
                     const newKarma = userDoc.data().karma + value;
                     transaction.update(userRef, { karma: newKarma });
 
-                    // Log the karma change
-                    const logCollectionRef = collection(db, `artifacts/${appId}/public/data/karma_log`);
-                    await addDoc(logCollectionRef, {
-                        userId: userId,
+                    const logDocRef = doc(karmaLogCollection);
+                    transaction.set(logDocRef, {
+                         userId: userId,
                         userName: userDoc.data().name,
                         change: value,
                         reason: reason,
@@ -307,7 +321,7 @@
             } else {
                 messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
             }
-            setTimeout(() => { messageArea.textContent = ''; messageArea.className = 'text-center font-medium p-2 rounded-lg'; }, 3000);
+            setTimeout(() => { messageArea.textContent = ''; messageArea.className = 'text-center font-medium p-2 rounded-lg'; }, 4000);
         }
 
         // --- MODAL LOGIC ---
@@ -323,6 +337,10 @@
         
         addUserForm.addEventListener('submit', async (e) => {
             e.preventDefault();
+            if (!isAuthReady) {
+                displayMessage("Bitte warten, bis die Verbindung hergestellt ist.", "error");
+                return;
+            }
             const newUserName = document.getElementById('newUserName').value.trim();
             const userDescription = document.getElementById('userDescription').value.trim();
 
@@ -342,6 +360,8 @@
                     console.error("Error adding document: ", error);
                     displayMessage("Fehler beim Hinzufügen des Benutzers.", "error");
                 }
+            } else {
+                displayMessage("Bitte Name und Beschreibung ausfüllen.", "error");
             }
         });
 
