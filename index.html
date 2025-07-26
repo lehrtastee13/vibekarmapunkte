@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karma-Ranking</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700;900&display=swap" rel="stylesheet">
+    <style>
+        /* Royal Purple Farbschema */
+        :root {
+            --royal-purple: #6a0dad; /* Ein sattes Lila */
+            --light-lavender: #f3e8ff;
+            --gold-accent: #ffd700;
+            --dark-text: #333333;
+        }
+        body {
+            font-family: 'Lato', sans-serif;
+            background-color: var(--light-lavender);
+            color: var(--dark-text);
+        }
+        .bg-primary { background-color: var(--royal-purple); }
+        .text-primary { color: var(--royal-purple); }
+        .border-primary { border-color: var(--royal-purple); }
+        .focus-ring-primary:focus {
+            ring-color: var(--royal-purple);
+        }
+
+        /* Custom styles für einen besseren Look */
+        .karma-btn {
+            transition: all 0.2s ease-in-out;
+        }
+        .karma-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .rank-1 {
+            background: linear-gradient(135deg, var(--gold-accent), #fff2a8);
+            border-left: 5px solid var(--royal-purple);
+        }
+        .rank-2 {
+            background: linear-gradient(135deg, #c0c0c0, #e8e8e8); /* Silver */
+        }
+        .rank-3 {
+            background: linear-gradient(135deg, #cd7f32, #e6b890); /* Bronze */
+        }
+        .modal-backdrop {
+            background-color: rgba(0, 0, 0, 0.6);
+        }
+    </style>
+</head>
+<body class="text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-primary text-white p-4 shadow-lg flex justify-between items-center">
+        <div>
+            <h1 class="text-2xl md:text-3xl font-bold tracking-wide">Karma-Ranking</h1>
+            <p class="text-sm opacity-80">Gute Taten sichtbar machen</p>
+        </div>
+        <button id="addUserBtn" class="bg-white text-primary hover:bg-gray-200 font-bold py-2 px-4 rounded-lg transition-transform duration-200 hover:scale-105">
+            + Neuen Benutzer
+        </button>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto p-4 md:p-8 grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Karma geben Sektion -->
+        <div class="lg:col-span-1 bg-white p-6 rounded-xl shadow-md">
+            <h2 class="text-2xl font-bold text-primary mb-4 border-b-2 border-primary pb-2">Karma vergeben</h2>
+            <form id="karmaForm" class="space-y-4">
+                <div>
+                    <label for="userSelect" class="block text-sm font-medium text-gray-700 mb-1">Benutzer auswählen</label>
+                    <select id="userSelect" name="userSelect" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-offset-1 focus-ring-primary">
+                        <option>Lade Benutzer...</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Positives Karma (+)</label>
+                    <div id="positiveKarma" class="flex flex-wrap gap-2">
+                        <button type="button" data-value="1" class="karma-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">+1</button>
+                        <button type="button" data-value="2" class="karma-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">+2</button>
+                        <button type="button" data-value="3" class="karma-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">+3</button>
+                        <button type="button" data-value="4" class="karma-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">+4</button>
+                        <button type="button" data-value="5" class="karma-btn flex-1 bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded-lg">+5</button>
+                    </div>
+                </div>
+                 <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Negatives Karma (-)</label>
+                    <div id="negativeKarma" class="flex flex-wrap gap-2">
+                        <button type="button" data-value="-1" class="karma-btn flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">-1</button>
+                        <button type="button" data-value="-2" class="karma-btn flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded-lg">-2</button>
+                    </div>
+                </div>
+                <div>
+                    <label for="karmaReason" class="block text-sm font-medium text-gray-700 mb-1">Begründung</label>
+                    <textarea id="karmaReason" name="karmaReason" rows="3" class="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-offset-1 focus-ring-primary" placeholder="Warum gibst du Karma? (z.B. 'Hat Kuchen mitgebracht')"></textarea>
+                </div>
+                 <div id="messageArea" class="text-center font-medium p-2 rounded-lg"></div>
+            </form>
+        </div>
+
+        <!-- Ranking Sektion -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-xl shadow-md">
+            <h2 class="text-2xl font-bold text-primary mb-4 border-b-2 border-primary pb-2">Live Karma-Ranking</h2>
+            <div id="ranking" class="space-y-3">
+                <!-- Ranking wird hier dynamisch eingefügt -->
+                <p class="text-gray-500">Lade Ranking... Wenn keine Benutzer da sind, füge einen neuen hinzu!</p>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal zum Hinzufügen von Benutzern -->
+    <div id="addUserModal" class="fixed inset-0 z-50 items-center justify-center hidden modal-backdrop">
+        <div class="bg-white rounded-lg shadow-xl p-8 w-11/12 md:w-1/3">
+            <h3 class="text-2xl font-bold text-primary mb-4">Neuen Benutzer anlegen</h3>
+            <form id="addUserForm">
+                <div class="mb-4">
+                    <label for="newUserName" class="block text-gray-700 text-sm font-bold mb-2">Name des Benutzers</label>
+                    <input type="text" id="newUserName" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-6">
+                    <label for="userDescription" class="block text-gray-700 text-sm font-bold mb-2">Kurze Beschreibung</label>
+                    <input type="text" id="userDescription" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" placeholder="z.B. 'Bester Kaffeekocher'" required>
+                </div>
+                <div class="flex items-center justify-between">
+                    <button type="submit" class="bg-primary hover:bg-opacity-90 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline">
+                        Benutzer speichern
+                    </button>
+                    <button type="button" id="closeModalBtn" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg focus:outline-none focus:shadow-outline">
+                        Abbrechen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script type="module">
+        // Firebase Imports
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, doc, addDoc, onSnapshot, runTransaction, serverTimestamp, query } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // --- FIREBASE CONFIGURATION ---
+        // Die Konfiguration wird automatisch aus der Umgebung geladen.
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : { apiKey: "...", authDomain: "...", projectId: "..." };
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-karma-app';
+        console.log("Using App ID:", appId); // For debugging
+        
+        // --- FIREBASE INITIALIZATION ---
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+
+        // --- COLLECTIONS ---
+        const usersCollection = collection(db, `artifacts/${appId}/public/data/users`);
+        const karmaLogCollection = collection(db, `artifacts/${appId}/public/data/karma_log`);
+
+        // --- DOM ELEMENTS ---
+        const userSelect = document.getElementById('userSelect');
+        const rankingDiv = document.getElementById('ranking');
+        const karmaForm = document.getElementById('karmaForm');
+        const positiveKarmaButtons = document.getElementById('positiveKarma');
+        const negativeKarmaButtons = document.getElementById('negativeKarma');
+        const karmaReason = document.getElementById('karmaReason');
+        const messageArea = document.getElementById('messageArea');
+        
+        // Modal elements
+        const addUserModal = document.getElementById('addUserModal');
+        const addUserBtn = document.getElementById('addUserBtn');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const addUserForm = document.getElementById('addUserForm');
+
+        // --- STATE ---
+        let users = [];
+
+        // --- AUTHENTICATION ---
+        onAuthStateChanged(auth, user => {
+            if (user) {
+                console.log("User is signed in:", user.uid);
+                // Sobald der Benutzer angemeldet ist, laden wir die Daten
+                loadAndRenderUsers();
+            } else {
+                console.log("User is signed out. Signing in anonymously...");
+                signInAnonymously(auth).catch(error => {
+                    console.error("Anonymous sign-in failed:", error);
+                    messageArea.textContent = "Fehler bei der Verbindung zur Datenbank.";
+                    messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
+                });
+            }
+        });
+
+        // --- FUNCTIONS ---
+
+        function renderRanking(sortedUsers) {
+            rankingDiv.innerHTML = ''; // Clear previous ranking
+            if (sortedUsers.length === 0) {
+                rankingDiv.innerHTML = '<p class="text-gray-500">Noch keine Benutzer vorhanden. Füge einen über den Button oben rechts hinzu!</p>';
+                return;
+            }
+
+            sortedUsers.forEach((user, index) => {
+                const rank = index + 1;
+                let rankClass = 'bg-white';
+                if (rank === 1) rankClass = 'rank-1';
+                else if (rank === 2) rankClass = 'rank-2';
+                else if (rank === 3) rankClass = 'rank-3';
+
+                const userCard = `
+                    <div class="p-4 rounded-lg shadow-sm flex items-center gap-4 ${rankClass}">
+                        <div class="text-2xl font-bold text-primary w-10 text-center">${rank}.</div>
+                        <div class="flex-grow">
+                            <h3 class="text-lg font-bold">${user.name}</h3>
+                            <p class="text-sm text-gray-600">${user.description}</p>
+                        </div>
+                        <div class="text-3xl font-black text-primary text-right">
+                            ${user.karma}
+                        </div>
+                    </div>
+                `;
+                rankingDiv.innerHTML += userCard;
+            });
+        }
+
+        function updateUserDropdown() {
+            userSelect.innerHTML = '';
+            if (users.length === 0) {
+                userSelect.innerHTML = '<option disabled selected>Bitte zuerst Benutzer anlegen</option>';
+                return;
+            }
+            users.forEach(user => {
+                const option = document.createElement('option');
+                option.value = user.id;
+                option.textContent = user.name;
+                userSelect.appendChild(option);
+            });
+        }
+
+        function loadAndRenderUsers() {
+            const q = query(usersCollection);
+            onSnapshot(q, (snapshot) => {
+                users = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // Sort users by karma points descending
+                const sortedUsers = [...users].sort((a, b) => b.karma - a.karma);
+                
+                renderRanking(sortedUsers);
+                updateUserDropdown();
+            }, (error) => {
+                console.error("Error fetching users: ", error);
+                messageArea.textContent = "Fehler beim Laden der Benutzer.";
+                messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
+            });
+        }
+
+        async function handleKarmaSubmit(value) {
+            const userId = userSelect.value;
+            const reason = karmaReason.value.trim();
+
+            if (!userId || userSelect.selectedOptions[0].disabled) {
+                displayMessage("Bitte einen Benutzer auswählen.", "error");
+                return;
+            }
+            if (!reason) {
+                displayMessage("Bitte eine Begründung angeben.", "error");
+                return;
+            }
+            
+            const userRef = doc(db, `artifacts/${appId}/public/data/users`, userId);
+
+            try {
+                await runTransaction(db, async (transaction) => {
+                    const userDoc = await transaction.get(userRef);
+                    if (!userDoc.exists()) {
+                        throw "Benutzer nicht gefunden!";
+                    }
+
+                    const newKarma = userDoc.data().karma + value;
+                    transaction.update(userRef, { karma: newKarma });
+
+                    // Log the karma change
+                    const logCollectionRef = collection(db, `artifacts/${appId}/public/data/karma_log`);
+                    await addDoc(logCollectionRef, {
+                        userId: userId,
+                        userName: userDoc.data().name,
+                        change: value,
+                        reason: reason,
+                        timestamp: serverTimestamp()
+                    });
+                });
+                
+                displayMessage(`Karma erfolgreich an ${userSelect.options[userSelect.selectedIndex].text} vergeben!`, "success");
+                karmaReason.value = '';
+
+            } catch (e) {
+                console.error("Transaction failed: ", e);
+                displayMessage("Fehler: Karma konnte nicht vergeben werden.", "error");
+            }
+        }
+        
+        function displayMessage(msg, type) {
+            messageArea.textContent = msg;
+            if (type === 'success') {
+                messageArea.className = 'text-center font-medium p-2 rounded-lg bg-green-100 text-green-700';
+            } else {
+                messageArea.className = 'text-center font-medium p-2 rounded-lg bg-red-100 text-red-700';
+            }
+            setTimeout(() => { messageArea.textContent = ''; messageArea.className = 'text-center font-medium p-2 rounded-lg'; }, 3000);
+        }
+
+        // --- MODAL LOGIC ---
+        addUserBtn.addEventListener('click', () => {
+            addUserModal.classList.remove('hidden');
+            addUserModal.classList.add('flex');
+        });
+
+        closeModalBtn.addEventListener('click', () => {
+            addUserModal.classList.add('hidden');
+            addUserModal.classList.remove('flex');
+        });
+        
+        addUserForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const newUserName = document.getElementById('newUserName').value.trim();
+            const userDescription = document.getElementById('userDescription').value.trim();
+
+            if (newUserName && userDescription) {
+                try {
+                    await addDoc(usersCollection, {
+                        name: newUserName,
+                        description: userDescription,
+                        karma: 0,
+                        createdAt: serverTimestamp()
+                    });
+                    addUserForm.reset();
+                    addUserModal.classList.add('hidden');
+                    addUserModal.classList.remove('flex');
+                    displayMessage("Benutzer erfolgreich hinzugefügt!", "success");
+                } catch (error) {
+                    console.error("Error adding document: ", error);
+                    displayMessage("Fehler beim Hinzufügen des Benutzers.", "error");
+                }
+            }
+        });
+
+        // --- EVENT LISTENERS ---
+        positiveKarmaButtons.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const value = parseInt(e.target.dataset.value, 10);
+                handleKarmaSubmit(value);
+            }
+        });
+        
+        negativeKarmaButtons.addEventListener('click', (e) => {
+            if (e.target.tagName === 'BUTTON') {
+                const value = parseInt(e.target.dataset.value, 10);
+                handleKarmaSubmit(value);
+            }
+        });
+        
+    </script>
+</body>
+</html>
